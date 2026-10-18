@@ -1,0 +1,36 @@
+[package]
+name = "toktok-boost"
+version = "1.0.0"
+edition = "2021"
+description = "Toktok Boost automation bot"
+license = "AGPL-3.0-or-later"
+build = "build.rs"
+
+[[bin]]
+name = "toktok-boost"
+path = "src/main.rs"
+
+[dependencies]
+aes = "0.9.3"
+anyhow = "1.0.104"
+base64 = "0.23.1"
+cbc = { version = "0.2.1", features = ["alloc"] }
+chrono = "0.4.45"
+crossterm = "0.29.0"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+md-5 = "0.11.0"
+rand = "0.10.3"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tokio = { version = "1.53.3", features = ["full"] }
+wreq = { version = "0.16.1", features = ["cookies", "gzip", "brotli", "deflate", "json"] }
+wreq-util = { version = "0.2.0", features = ["emulation"] }
+
+[build-dependencies]
+winres = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
