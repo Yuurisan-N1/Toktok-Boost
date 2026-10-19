@@ -1,0 +1,34 @@
+Toktok Boost HOWTO
+
+Short version, four steps.
+
+1. INSTALL RUST
+   Windows / Linux / macOS: https://rustup.rs  then reopen the terminal and check:
+       rustc --version
+
+2. FILL data.txt
+   Put ONE TikTok link in the file. A profile, a video or a share link all work:
+       https://www.tiktok.com/@username
+       https://www.tiktok.com/@username/video/1234567890
+   Blank lines and lines starting with # are ignored. Only the first link is used.
+
+3. BUILD
+       cargo build --release
+
+4. RUN
+       Windows :  target\release\toktok-boost.exe
+       Linux   :  ./target/release/toktok-boost
+       Detached:  ./run.sh screen     (attach: screen -r toktok-boost)
+       Stop    :  ./run.sh stop       or press Ctrl+C in the foreground window
+
+WHAT YOU SHOULD SEE
+   The banner, then the captcha gate clearing, then the service list that was
+   read from the site. Type the number of a service, answer the prompts for that
+   service, and the bot submits it to the single link in data.txt. A closed
+   service is listed in red with the site's own badge; it opens again on the
+   next run without a rebuild.
+
+NOTES
+   proxy.txt is optional. One proxy per line, empty means a direct connection.
+   config.json holds the pause between cycles in seconds (sleep_seconds,
+   minimum 30).
