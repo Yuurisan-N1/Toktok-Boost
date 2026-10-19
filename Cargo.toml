@@ -17,9 +17,13 @@ base64 = "0.23.1"
 cbc = { version = "0.2.1", features = ["alloc"] }
 chrono = "0.4.45"
 crossterm = "0.29.0"
+hmac = "0.12.1"
 image = { version = "0.25.10", default-features = false, features = ["png"] }
 md-5 = "0.11.0"
 rand = "0.10.3"
+rand_core = { version = "0.6.4", features = ["getrandom"] }
+rsa = { version = "0.9.10", features = ["sha2"] }
+sha2 = "0.10.9"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 tokio = { version = "1.53.3", features = ["full"] }
