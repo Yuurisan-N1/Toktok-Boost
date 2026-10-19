@@ -3,3 +3,6 @@
 *.log
 .DS_Store
 dist
+assets/captcha_samples/
+src/captcha/solver.rs
+src/api/protocol.rs
