@@ -1,4 +1,3 @@
-
 use super::dom;
 
 #[derive(Debug, Clone)]
@@ -24,13 +23,15 @@ pub struct Dashboard {
 
 impl Dashboard {
     pub fn parse(html: &str) -> Self {
-        Self { cards: read_cards(html), panels: read_panels(html) }
+        Self {
+            cards: read_cards(html),
+            panels: read_panels(html),
+        }
     }
 
     pub fn panel_for(&self, slug: &str) -> Option<&Panel> {
         self.panels.iter().find(|panel| panel.slug == slug)
     }
-
 }
 
 fn read_cards(html: &str) -> Vec<Card> {
@@ -61,7 +62,12 @@ fn read_cards(html: &str) -> Vec<Card> {
         }
 
         let badge = dom::element_text(block, "badge").unwrap_or_default();
-        cards.push(Card { title, slug, enabled, badge });
+        cards.push(Card {
+            title,
+            slug,
+            enabled,
+            badge,
+        });
     }
 
     cards
@@ -80,14 +86,20 @@ fn read_panels(html: &str) -> Vec<Panel> {
         let Some(form_start) = block.find("<form") else {
             continue;
         };
-        let form_head = &block[form_start..block[form_start..].find('>').map(|e| form_start + e).unwrap_or(block.len())];
+        let form_head = &block[form_start
+            ..block[form_start..]
+                .find('>')
+                .map(|e| form_start + e)
+                .unwrap_or(block.len())];
         let Some(action) = dom::attr(form_head, "action") else {
             continue;
         };
 
         let mut field = String::new();
         for tag in html_tags(&block[form_start..], "input") {
-            let placeholder = dom::attr(&tag, "placeholder").unwrap_or_default().to_lowercase();
+            let placeholder = dom::attr(&tag, "placeholder")
+                .unwrap_or_default()
+                .to_lowercase();
             if placeholder.contains("url") || placeholder.contains("username") {
                 if let Some(name) = dom::attr(&tag, "name") {
                     field = name;
@@ -100,7 +112,11 @@ fn read_panels(html: &str) -> Vec<Panel> {
             continue;
         }
 
-        panels.push(Panel { slug, action, field });
+        panels.push(Panel {
+            slug,
+            action,
+            field,
+        });
     }
 
     panels

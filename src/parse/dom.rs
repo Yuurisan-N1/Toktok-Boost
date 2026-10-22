@@ -1,4 +1,3 @@
-
 pub fn decode_entities(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     let chars: Vec<char> = input.chars().collect();

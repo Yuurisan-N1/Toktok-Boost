@@ -1,4 +1,3 @@
-
 use super::dom;
 
 #[derive(Debug, Clone, Default)]
@@ -40,7 +39,11 @@ impl Fragment {
 
             let is_pager = fields.iter().any(|(name, _)| name == "p");
             if is_pager {
-                pages.push(Form { action, fields, ..Form::default() });
+                pages.push(Form {
+                    action,
+                    fields,
+                    ..Form::default()
+                });
                 continue;
             }
 
@@ -66,13 +69,16 @@ impl Fragment {
             .or_else(|| dom::element_text(html, "text-primary font-weight-bold"))
             .unwrap_or_default();
 
-        Self { forms, message, pages }
+        Self {
+            forms,
+            message,
+            pages,
+        }
     }
 
     pub fn has_rows(&self) -> bool {
         self.forms.iter().any(|form| !form.username.is_empty())
     }
-
 }
 
 fn counter_of(block: &str) -> String {
@@ -202,7 +208,10 @@ mod tests {
         let fragment = Fragment::parse(COMMENT);
         assert_eq!(fragment.pages.len(), 1);
         assert_eq!(fragment.forms.len(), 1);
-        assert_eq!(fragment.pages[0].fields[1], ("p".to_string(), "40".to_string()));
+        assert_eq!(
+            fragment.pages[0].fields[1],
+            ("p".to_string(), "40".to_string())
+        );
     }
 
     #[test]
