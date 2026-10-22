@@ -61,7 +61,11 @@ pub async fn run(session: &mut Session) -> Result<()> {
 
                 loop {
                     if let Err(error) = feature::run(session, &slug).await {
-                        lr(&format!("{}: {}, leaving it for the next cycle", title, reason(&error.to_string())));
+                        lr(&format!(
+                            "{}: {}, leaving it for the next cycle",
+                            title,
+                            reason(&error.to_string())
+                        ));
                         break;
                     }
 
@@ -72,11 +76,17 @@ pub async fn run(session: &mut Session) -> Result<()> {
                         .any(|item| item.slug == slug && item.enabled);
 
                     if !still_open {
-                        ly(&format!("The {} service is closed, back to the menu", title));
+                        ly(&format!(
+                            "The {} service is closed, back to the menu",
+                            title
+                        ));
                         break;
                     }
 
-                    ly(&format!("Starting the next cycle for the {} service", title));
+                    ly(&format!(
+                        "Starting the next cycle for the {} service",
+                        title
+                    ));
                 }
 
                 lines = show(session);

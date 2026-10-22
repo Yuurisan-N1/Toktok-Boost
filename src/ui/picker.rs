@@ -35,7 +35,10 @@ fn matches(row: &Form, query: &str) -> bool {
 }
 
 fn filtered<'a>(rows: &[&'a Form], query: &str) -> Vec<&'a Form> {
-    rows.iter().copied().filter(|row| matches(row, query)).collect()
+    rows.iter()
+        .copied()
+        .filter(|row| matches(row, query))
+        .collect()
 }
 
 fn pick_live(rows: &[&Form], label: &str) -> Result<Option<usize>> {
@@ -54,7 +57,12 @@ fn pick_live(rows: &[&Form], label: &str) -> Result<Option<usize>> {
         }
 
         if drawn > 0 {
-            queue!(stdout, MoveToColumn(0), MoveUp(drawn as u16), Clear(ClearType::FromCursorDown))?;
+            queue!(
+                stdout,
+                MoveToColumn(0),
+                MoveUp(drawn as u16),
+                Clear(ClearType::FromCursorDown)
+            )?;
         }
 
         let mut lines = Vec::new();
@@ -104,10 +112,12 @@ fn pick_live(rows: &[&Form], label: &str) -> Result<Option<usize>> {
         stdout.flush()?;
 
         match event::read()? {
-            Event::Key(KeyEvent { code, modifiers, kind, .. })
-                if kind != KeyEventKind::Release =>
-            {
-                match code {
+            Event::Key(KeyEvent {
+                code,
+                modifiers,
+                kind,
+                ..
+            }) if kind != KeyEventKind::Release => match code {
                 KeyCode::Char('c') if modifiers.contains(KeyModifiers::CONTROL) => break None,
                 KeyCode::Char(c) => {
                     query.push(c);
@@ -131,8 +141,7 @@ fn pick_live(rows: &[&Form], label: &str) -> Result<Option<usize>> {
                 }
                 KeyCode::Esc => break None,
                 _ => {}
-                }
-            }
+            },
             _ => {}
         }
     };
