@@ -1,4 +1,3 @@
-
 use serde_json::{json, Value};
 
 pub fn build(user_agent: &str, language: &str) -> Value {

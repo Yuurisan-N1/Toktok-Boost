@@ -20,7 +20,6 @@ const PROXY_PATH: &str = "proxy.txt";
 
 #[tokio::main]
 async fn main() {
-
     tokio::spawn(async move {
         let _ = tokio::signal::ctrl_c().await;
         println!();
@@ -30,12 +29,11 @@ async fn main() {
 
     #[cfg(unix)]
     tokio::spawn(async move {
-        let mut term = match tokio::signal::unix::signal(
-            tokio::signal::unix::SignalKind::terminate(),
-        ) {
-            Ok(s) => s,
-            Err(_) => return,
-        };
+        let mut term =
+            match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+                Ok(s) => s,
+                Err(_) => return,
+            };
         term.recv().await;
         println!();
         lr("Script stopped by user");

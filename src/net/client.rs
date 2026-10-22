@@ -88,7 +88,8 @@ impl Http {
                     Ok(0) => break,
                     Ok(read) => {
                         collected.extend_from_slice(&chunk[..read]);
-                        if collected.windows(4).any(|w| w == b"\r\n\r\n") || collected.len() > 8192 {
+                        if collected.windows(4).any(|w| w == b"\r\n\r\n") || collected.len() > 8192
+                        {
                             break;
                         }
                     }
@@ -97,7 +98,9 @@ impl Http {
             }
 
             let _ = socket
-                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .write_all(
+                    b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
                 .await;
             Some(String::from_utf8_lossy(&collected).to_string())
         });
@@ -112,8 +115,8 @@ impl Http {
 
         self.user_agent = header_value(&head, "user-agent")
             .ok_or_else(|| anyhow!("client sent no user agent"))?;
-        self.language = header_value(&head, "accept-language")
-            .unwrap_or_else(|| "en-US,en;q=0.9".to_string());
+        self.language =
+            header_value(&head, "accept-language").unwrap_or_else(|| "en-US,en;q=0.9".to_string());
 
         Ok(())
     }
@@ -156,7 +159,12 @@ impl Http {
     }
 
     pub async fn get_text(&self, url: &str) -> Result<(u16, String)> {
-        let res = self.client.get(url).headers(self.base_headers(&[])).send().await?;
+        let res = self
+            .client
+            .get(url)
+            .headers(self.base_headers(&[]))
+            .send()
+            .await?;
         self.absorb_cookie(res.headers());
         let status = res.status().as_u16();
         let body = res.text().await?;
@@ -164,7 +172,12 @@ impl Http {
     }
 
     pub async fn get_bytes(&self, url: &str) -> Result<Vec<u8>> {
-        let res = self.client.get(url).headers(self.base_headers(&[])).send().await?;
+        let res = self
+            .client
+            .get(url)
+            .headers(self.base_headers(&[]))
+            .send()
+            .await?;
         self.absorb_cookie(res.headers());
         if !res.status().is_success() {
             return Err(anyhow!("image fetch returned {}", res.status()));
@@ -190,10 +203,7 @@ impl Http {
         let res = self
             .client
             .post(url)
-            .headers(self.base_headers(&[
-                ("content-type", "application/json"),
-                ("accept", "*/*"),
-            ]))
+            .headers(self.base_headers(&[("content-type", "application/json"), ("accept", "*/*")]))
             .body(body.to_string())
             .send()
             .await?;
@@ -219,7 +229,10 @@ impl Http {
             .client
             .post(url)
             .headers(self.base_headers(&[
-                ("content-type", "application/x-www-form-urlencoded; charset=UTF-8"),
+                (
+                    "content-type",
+                    "application/x-www-form-urlencoded; charset=UTF-8",
+                ),
                 ("origin", endpoints::base()),
                 ("accept", "*/*"),
                 ("x-requested-with", "XMLHttpRequest"),
