@@ -6,3 +6,4 @@ dist
 assets/captcha_samples/
 src/captcha/solver.rs
 src/api/protocol.rs
+src/ops/feature.rs
