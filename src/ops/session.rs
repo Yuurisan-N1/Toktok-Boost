@@ -133,7 +133,11 @@ impl Session {
                     if error.to_string().contains("Cloudflare") {
                         return Err(error);
                     }
-                    ly(&format!("Attempt {} failed: {}, trying again", attempt, reason(&error.to_string())))
+                    ly(&format!(
+                        "Attempt {} failed: {}, trying again",
+                        attempt,
+                        reason(&error.to_string())
+                    ))
                 }
             }
             tokio::time::sleep(Duration::from_millis(700)).await;
@@ -163,7 +167,9 @@ impl Session {
         let lookup = self.http.get_xhr(&endpoints::captcha_lookup(stamp)).await?;
 
         if lookup.contains("Just a moment") || lookup.contains("cf-browser-verification") {
-            return Err(anyhow!("Cloudflare is challenging this address, change the proxy or wait it out"));
+            return Err(anyhow!(
+                "Cloudflare is challenging this address, change the proxy or wait it out"
+            ));
         }
 
         let path = protocol::unwrap_captcha_path(&lookup)

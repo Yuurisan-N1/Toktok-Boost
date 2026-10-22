@@ -3,11 +3,7 @@ use crate::api::endpoints;
 pub fn host(url: &str) -> String {
     let rest = url.split("://").nth(1).unwrap_or(url);
     let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
-    authority
-        .split(':')
-        .next()
-        .unwrap_or("")
-        .to_lowercase()
+    authority.split(':').next().unwrap_or("").to_lowercase()
 }
 
 pub fn is_short(url: &str) -> bool {
@@ -59,7 +55,9 @@ mod tests {
     fn short_hosts_are_recognised() {
         assert!(is_short("https://vm.tiktok.com/ZSg6hY3Jx/"));
         assert!(is_short("https://vt.tiktok.com/ZSg6hWkjX/"));
-        assert!(!is_short("https://www.tiktok.com/@im_dyiiir/video/7659266382223232274"));
+        assert!(!is_short(
+            "https://www.tiktok.com/@im_dyiiir/video/7659266382223232274"
+        ));
         assert_eq!(host("http://127.0.0.1:8099/short"), "127.0.0.1");
     }
 

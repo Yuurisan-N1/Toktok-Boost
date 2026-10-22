@@ -11,13 +11,15 @@ use crate::ui::picker;
 use super::session::Session;
 use super::target;
 
-const MAX_COOLDOWN: u64 = 300;
-const COOLDOWNS: u8 = 2;
+const MAX_COOLDOWN: u64 = 900;
+const MARGIN: u64 = 5;
+const STALLS: u8 = 1;
 const RESETS: u8 = 3;
 const RETRIES: u8 = 2;
 const GATES: u8 = 2;
 const STEPS: u8 = 3;
 const SUBMITS: u8 = 2;
+const ROUNDS: u32 = 200;
 
 pub fn masked(target: &str) -> String {
     target
@@ -91,8 +93,15 @@ pub async fn run(session: &mut Session, slug: &str) -> Result<()> {
         Ok(None) => {}
         Err(error) => {
             let text = error.to_string();
-            let shown = if text.starts_with("The ") { sanitize(&text) } else { reason(&text).to_string() };
-            lr(&format!("Search failed: {}, leaving the target for the next cycle", shown));
+            let shown = if text.starts_with("The ") {
+                sanitize(&text)
+            } else {
+                reason(&text).to_string()
+            };
+            lr(&format!(
+                "Search failed: {}, leaving the target for the next cycle",
+                shown
+            ));
         }
     }
 
@@ -125,11 +134,15 @@ fn candidates(target: &str) -> Vec<String> {
     out
 }
 
-async fn search(session: &mut Session, slug: &str, target: &str) -> Result<Option<(String, Fragment)>> {
+async fn search(
+    session: &mut Session,
+    slug: &str,
+    target: &str,
+) -> Result<Option<(String, Fragment)>> {
     let mut waited: u64 = 0;
     let mut resets: u8 = 0;
     let mut retries: u8 = 0;
-    let mut cooldowns: u8 = 0;
+    let mut stalls: u8 = 0;
     let mut gates: u8 = 0;
     let mut last_wait: u64 = 0;
     let mut tries = candidates(target);
@@ -166,7 +179,8 @@ async fn search(session: &mut Session, slug: &str, target: &str) -> Result<Optio
                 gates += 1;
                 ly("The request did not come back, signing in from scratch before the next try");
                 session.relogin().await?;
-                cooldowns = 0;
+                stalls = 0;
+                last_wait = 0;
                 continue 'round;
             }
         };
@@ -188,34 +202,22 @@ async fn search(session: &mut Session, slug: &str, target: &str) -> Result<Optio
             }
             gates += 1;
             session.relogin().await?;
-            cooldowns = 0;
+            stalls = 0;
+            last_wait = 0;
             continue 'round;
         }
 
         if let Some(wait) = protocol::wait_seconds(&body) {
-            cooldowns += 1;
+            if wait == last_wait {
+                stalls += 1;
+            } else {
+                stalls = 0;
+                last_wait = wait;
+            }
 
-            if cooldowns == COOLDOWNS {
-                cooldowns = 0;
-
-                if gates == GATES {
-                    ly(&format!(
-                        "The service still asked for a pause after {} fresh sessions, leaving the target for the next cycle",
-                        gates
-                    ));
-                    return Ok(None);
-                }
-
-                gates += 1;
-                ly(&format!(
-                    "The site asked for a pause of {} {}",
-                    wait,
-                    unit_word(wait, "second", "seconds")
-                ));
-                ly("The pause keeps coming back, signing in from scratch before the next try");
-                session.relogin().await?;
-                ly("The session was renewed, sending the same search again");
-                continue 'round;
+            if stalls > STALLS {
+                ly("The pause is stuck on the same number, leaving the target for the next cycle");
+                return Ok(None);
             }
 
             if waited + wait > MAX_COOLDOWN {
@@ -229,21 +231,13 @@ async fn search(session: &mut Session, slug: &str, target: &str) -> Result<Optio
 
             waited += wait;
 
-            let loud = wait != last_wait;
-            last_wait = wait;
-
-            if loud {
-                ly(&format!(
-                    "The site asked for a pause of {} {}",
-                    wait,
-                    unit_word(wait, "second", "seconds")
-                ));
-            }
-            session.sleep_server(wait).await;
-
-            if loud {
-                ly("The pause is over, sending the same search again");
-            }
+            ly(&format!(
+                "The site asked for a pause of {} {}",
+                wait,
+                unit_word(wait, "second", "seconds")
+            ));
+            session.sleep_server(wait + MARGIN).await;
+            ly("The pause is over, sending the same search again");
             continue;
         }
 
@@ -266,7 +260,9 @@ async fn search(session: &mut Session, slug: &str, target: &str) -> Result<Optio
             return Ok(Some((action, fragment)));
         }
 
-        let mut said = protocol::loose_text(&body).map(|text| plain(&text)).unwrap_or_default();
+        let mut said = protocol::loose_text(&body)
+            .map(|text| plain(&text))
+            .unwrap_or_default();
         if said.is_empty() {
             said = plain(&fragment.message);
         }
@@ -430,21 +426,44 @@ async fn button_flow(
     fragment: Fragment,
     depth: u8,
 ) -> Result<()> {
-    let Some(form) = fragment.forms.first() else {
+    let Some(form) = fragment.forms.first().cloned() else {
         lr("The reply carried no button to press");
         return Ok(());
     };
 
-    let reply = submit(session, action, form, "").await?;
+    let before: Option<u64> = None;
+    let mut rounds: u32 = 0;
 
-    if let Some(wait) = reply.wait {
-        session.sleep_server(wait).await;
+    loop {
+        if rounds == ROUNDS {
+            ly("The round limit is reached, waiting for the next cycle");
+            break;
+        }
+        rounds += 1;
+
+        let reply = submit(session, action, &form, "").await?;
+
+        if reply.expired {
+            ly("The action token expired, waiting for the next cycle");
+            break;
+        }
+
+        totals(label, before, reply.sent);
+
+        if !reply.ok {
+            break;
+        }
+
+        if let Some(next) = reply.panel {
+            return Box::pin(deliver(session, action, label, next, depth + 1)).await;
+        }
+
+        if let Some(wait) = reply.wait {
+            session.sleep_server(wait + MARGIN).await;
+        }
     }
 
-    match reply.panel {
-        Some(next) => Box::pin(deliver(session, action, label, next, depth + 1)).await,
-        None => Ok(()),
-    }
+    Ok(())
 }
 
 async fn direct_flow(
@@ -480,14 +499,11 @@ struct Reply {
     panel: Option<Fragment>,
     sent: Option<u64>,
     wait: Option<u64>,
+    ok: bool,
+    expired: bool,
 }
 
-async fn submit(
-    session: &mut Session,
-    action: &str,
-    form: &Form,
-    limit: &str,
-) -> Result<Reply> {
+async fn submit(session: &mut Session, action: &str, form: &Form, limit: &str) -> Result<Reply> {
     let mut fields = form.fields.clone();
     if !form.limits.is_empty() {
         fields.push(("select_lmt".to_string(), limit.to_string()));
@@ -500,6 +516,7 @@ async fn submit(
     };
 
     let mut tries: u8 = 0;
+    let mut waited: u64 = 0;
 
     loop {
         tries += 1;
@@ -536,7 +553,15 @@ async fn submit(
             continue;
         }
 
+        if protocol::is_dashboard(&body) {
+            return Ok(Reply {
+                expired: true,
+                ..Reply::default()
+            });
+        }
+
         let mut sent = protocol::sent_count(&body);
+        let counted = sent.is_some() || protocol::sent_ok(&body);
 
         if sent.is_none() && protocol::sent_ok(&body) {
             sent = limit.trim().parse::<u64>().ok();
@@ -545,39 +570,53 @@ async fn submit(
         let fragment = Fragment::parse(&body);
 
         if !fragment.forms.is_empty() || !fragment.pages.is_empty() {
-            return Ok(Reply { panel: Some(fragment), sent, wait: None });
+            return Ok(Reply {
+                panel: Some(fragment),
+                sent,
+                wait: None,
+                ok: true,
+                expired: false,
+            });
+        }
+
+        if counted {
+            if let Some(value) = sent {
+                lg(&format!(
+                    "The site counted {} for this target",
+                    group(value)
+                ));
+            } else {
+                lg("The site accepted the submission for this target");
+            }
+            return Ok(Reply {
+                panel: None,
+                sent,
+                wait: protocol::wait_seconds(&body),
+                ok: true,
+                expired: false,
+            });
         }
 
         if let Some(wait) = protocol::wait_seconds(&body) {
-            if sent.is_none() {
-                if tries > SUBMITS {
-                    ly("The submission was not counted, the site only asked for a pause");
-                    return Ok(Reply { panel: None, sent: None, wait: Some(wait) });
-                }
+            if waited + wait > MAX_COOLDOWN {
                 ly(&format!(
-                    "The site asked for a pause of {} {}",
-                    wait,
-                    unit_word(wait, "second", "seconds")
+                    "The service kept asking for a pause for {} {}, leaving the target for the next cycle",
+                    waited,
+                    unit_word(waited, "second", "seconds")
                 ));
-
-                if tries == 1 {
-                    ly("The submission was not counted, signing in from scratch before sending it again");
-                    session.relogin().await?;
-                    ly("The session was renewed, sending the same submission again");
-                    continue;
-                }
-
-                session.sleep_server(wait).await;
-                ly("The pause is over, sending the same submission again");
-                continue;
+                return Ok(Reply::default());
             }
-            lg("The site accepted the submission for this target");
-            return Ok(Reply { panel: None, sent, wait: Some(wait) });
-        }
 
-        if sent.is_some() {
-            lg("The site accepted the submission for this target");
-            return Ok(Reply { panel: None, sent, wait: None });
+            waited += wait;
+
+            ly(&format!(
+                "The site asked for a pause of {} {}",
+                wait,
+                unit_word(wait, "second", "seconds")
+            ));
+            session.sleep_server(wait + MARGIN).await;
+            ly("The pause is over, sending the same submission again");
+            continue;
         }
 
         if protocol::is_rejection(&body) {
@@ -650,8 +689,14 @@ mod tests {
     #[test]
     fn the_link_ladder_starts_without_www_then_keeps_it_then_tries_the_id() {
         let ladder = candidates("https://www.tiktok.com/@im_dyiiir/video/7659266382223232274");
-        assert_eq!(ladder[0], "https://tiktok.com/@im_dyiiir/video/7659266382223232274");
-        assert_eq!(ladder[1], "https://www.tiktok.com/@im_dyiiir/video/7659266382223232274");
+        assert_eq!(
+            ladder[0],
+            "https://tiktok.com/@im_dyiiir/video/7659266382223232274"
+        );
+        assert_eq!(
+            ladder[1],
+            "https://www.tiktok.com/@im_dyiiir/video/7659266382223232274"
+        );
         assert_eq!(ladder[2], "7659266382223232274");
         assert_eq!(ladder.len(), 3);
     }
@@ -659,7 +704,10 @@ mod tests {
     #[test]
     fn a_link_without_www_gets_the_www_form_as_its_second_try() {
         let ladder = candidates("https://tiktok.com/@im_dyiiir/video/7659266382223232274");
-        assert_eq!(ladder[1], "https://www.tiktok.com/@im_dyiiir/video/7659266382223232274");
+        assert_eq!(
+            ladder[1],
+            "https://www.tiktok.com/@im_dyiiir/video/7659266382223232274"
+        );
         assert_eq!(ladder[2], "7659266382223232274");
     }
 
