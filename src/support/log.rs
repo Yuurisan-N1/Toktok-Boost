@@ -51,7 +51,10 @@ pub fn ask(msg: &str) -> String {
 
     if !answer.is_empty() {
         use std::io::IsTerminal;
-        print!("{}", echo_line(msg, &answer, std::io::stdin().is_terminal()));
+        print!(
+            "{}",
+            echo_line(msg, &answer, std::io::stdin().is_terminal())
+        );
         let _ = std::io::Write::flush(&mut std::io::stdout());
     }
 
@@ -186,7 +189,14 @@ pub fn mask_host(host: &str) -> String {
     let chars: Vec<char> = host.chars().collect();
     if chars.len() > 4 {
         let head: String = chars.iter().take(2).collect();
-        let tail: String = chars.iter().rev().take(2).collect::<Vec<_>>().into_iter().rev().collect();
+        let tail: String = chars
+            .iter()
+            .rev()
+            .take(2)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
         format!("{}*****{}", head, tail)
     } else {
         "***".to_string()
@@ -234,7 +244,10 @@ mod tests {
     fn left_text_carries_days() {
         assert_eq!(left_text(45), "00:00:45");
         assert_eq!(left_text(3661), "01:01:01");
-        assert_eq!(left_text(2 * 86400 + 3 * 3600 + 47 * 60 + 33), "02:03:47:33");
+        assert_eq!(
+            left_text(2 * 86400 + 3 * 3600 + 47 * 60 + 33),
+            "02:03:47:33"
+        );
     }
 
     #[test]
@@ -257,14 +270,24 @@ mod tests {
 
     #[test]
     fn reason_never_carries_a_link() {
-        let raw = "error sending request for uri (https://example.com/aGVsbG8): operation timed out";
+        let raw =
+            "error sending request for uri (https://example.com/aGVsbG8): operation timed out";
         let text = reason(raw);
         assert_eq!(text, "the request timed out");
         assert!(!text.contains("http"), "link survived: {}", text);
         assert!(!text.contains("example"), "host survived: {}", text);
-        assert_eq!(reason("dns error: failed to lookup address"), "the address could not be resolved");
-        assert_eq!(reason("error decoding response body"), "the reply could not be read");
-        assert_eq!(reason("connection refused"), "the connection could not be established");
+        assert_eq!(
+            reason("dns error: failed to lookup address"),
+            "the address could not be resolved"
+        );
+        assert_eq!(
+            reason("error decoding response body"),
+            "the reply could not be read"
+        );
+        assert_eq!(
+            reason("connection refused"),
+            "the connection could not be established"
+        );
         assert_eq!(reason("something odd happened"), "the request failed");
     }
 }

@@ -22,7 +22,9 @@ pub fn print_banner() {
 
 fn clear_screen() {
     if cfg!(target_os = "windows") {
-        let _ = std::process::Command::new("cmd").args(["/c", "cls"]).status();
+        let _ = std::process::Command::new("cmd")
+            .args(["/c", "cls"])
+            .status();
     } else {
         print!("\x1b[2J\x1b[1;1H");
     }
